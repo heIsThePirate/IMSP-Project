@@ -29,7 +29,7 @@ omegaDB=2.250419120,
 delta=0.3,
 
 // Calculate until time tMAX
-tMAX =40000000.0,
+tMAX =9900250.0,
 
 // Parameters of Shtormer method
 k1=7.0/6.0, k2=5.0/12.0, k3=1.0/3.0, k4=1.0/12.0;
@@ -90,6 +90,10 @@ ofstream OFSOee("Energies.txt",ios::out);
 OFSOee.precision(10);
 ofstream OFSOdb("Number_of_DB.txt",ios::out);
 OFSOdb.precision(10);
+ofstream OFSOdbL("DB_List.txt",ios::out);
+OFSOdbL.precision(10);
+ofstream OFSOed("Energy_distr.txt",ios::out);
+OFSOed.precision(10);
 
 double omegaMAX=2.2360679775;
 double omegaMIN=1.0;
@@ -207,10 +211,10 @@ while (t<=tMAX+0.0000001){
               if ((EnerOfAtoms[i]>32.0*TotEn)&&(EnerOfAtoms[i]<64.0*TotEn)) DB32+=1;
            }
            if ((EnerOfAtoms[i]>EnerOfAtoms[i-1])&&(EnerOfAtoms[i]>EnerOfAtoms[i+1])){
-              if ((EnerOfAtoms[i]>64.0*TotEn)&&(EnerOfAtoms[i]<128.0*TotEn)) DB32+=1;
+              if ((EnerOfAtoms[i]>64.0*TotEn)&&(EnerOfAtoms[i]<128.0*TotEn)) DB64+=1;
            }
            if ((EnerOfAtoms[i]>EnerOfAtoms[i-1])&&(EnerOfAtoms[i]>EnerOfAtoms[i+1])){
-              if (EnerOfAtoms[i]>128.0*TotEn) DB64+=1;
+              if (EnerOfAtoms[i]>128.0*TotEn) DB128+=1;
            }
         }// for(int i=1; i<Nat-1; i++)
         OFSOdb.width(12); OFSOdb << t;              OFSOdb << " ";  // 1
@@ -234,6 +238,41 @@ while (t<=tMAX+0.0000001){
     nit +=1;
 
 }//while (t<=tMAX+0.0000001)
+
+// Count DB
+Kin=KinEnergy(u0,u1,u2,u3);
+Pot=PotEnergy(u0);
+TotEn = (Kin+Pot)/(1.0*Nat);
+EnergyOfAtoms(u0,u1,u2,u3);
+for(int i=0; i<Nat; i++){
+        OFSOed.width(12); OFSOed << i; OFSOed << " ";               // 1
+        OFSOed.width(12); OFSOed << EnerOfAtoms[i]; OFSOed << "\n"; // 2
+}
+
+int DBN=0;
+for(int i=1; i<Nat-1; i++){
+        if ((EnerOfAtoms[i]>EnerOfAtoms[i-1])&&(EnerOfAtoms[i]>EnerOfAtoms[i+1])){
+                if (EnerOfAtoms[i]>4.0*TotEn){
+                        DBN+=1;
+                 // count DB energy
+                        double DBen=EnerOfAtoms[i];
+                        int k=1;
+                        while (EnerOfAtoms[i+k-1]>EnerOfAtoms[i+k]){
+                                DBen+=EnerOfAtoms[i+k];
+                                k+=1;
+                        }
+                        k=-1;
+                        while (EnerOfAtoms[i+k+1]>EnerOfAtoms[i+k]){
+                                DBen+=EnerOfAtoms[i+k];
+                                k-=1;
+                        }
+                        OFSOdbL.width(12); OFSOdbL << DBN;  OFSOdbL << " ";  // 1
+                        OFSOdbL.width(12); OFSOdbL << i;    OFSOdbL << " ";  // 2
+                        OFSOdbL.width(12); OFSOdbL << DBen; OFSOdbL << "\n"; // 3
+                }
+        }
+}// for(int i=1; i<Nat-1; i++)
+
 
 //Cloze the file
 OFSOee.close();

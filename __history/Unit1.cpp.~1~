@@ -1,11 +1,10 @@
 //---------------------------------------------------------------------------
-#include <vcl\vcl.h>
+//#include <vcl\vcl.h>
 #pragma hdrstop
 #include <math.h>
-#include <strstrea.h>
-#include <fstream.h>
-#include <iostream.h>
-#include <fstream.h>
+#include <strstream>
+#include <iostream>
+#include <fstream>
 #include <conio.h>
 #include "Unit1.h"
 #include <complex.h>
@@ -23,25 +22,40 @@ dt=0.005, dt2=dt*dt,
 // Discreteness parameter
 alpha=1.0/6.0,
 beta=1.0/120.0,
-ADB=1.0,
-teta=0.257,
-omegaDB=2.250419120,
-delta=0.3,
+A=0.01,
+ADB=1.5,
+teta=0.398,
+omegaDB=2.27,
+delta=-0.0,
 
-// Calculate until time tMAX
-tMAX =100.0,
+
+
+// Calculate from time tMIN to time tMAX
+tMIN =0.0,
+// V hard=0.1303
+//tMAX = dt, // 0h
+//tMAX = 115.112-10.0*7.674, // 5h
+//tMAX = 115.112-5.0*7.674, // 10h
+tMAX = 1115.112, // 15h
+//tMAX = 115.112+5.0*7.674+0.01, // 20h
+//tMAX = 115.112+5.0*7.674+0.01, // 20h
+
+//tMAX = dt, // 0h
+//tMAX = 3.523*150, // 5h
+//tMAX = 3.523*10, // 10h
+//tMAX = 3.523*15+0.03, // 15h
+//tMAX = 3.523*20+0.04, // 20h
 
 // Parameters of Shtormer method
 k1=7.0/6.0, k2=5.0/12.0, k3=1.0/3.0, k4=1.0/12.0;
 
 int X1,X2,X3,found;
 double e1do,e2do,e3do,e1po,e2po,e3po,TotEn,Kin,Pot,omega,tmax,tmaxP,xmax,xmaxP,
-TTpast,DBT,DBomega,DBampl,sn,cn,dn,JacobiPeriod,
+DBT,DBomega,DBampl,
 P1i,P2i,P1f,P2f,E1i,E2i,E1f,E2f,Ap,Am,Af,Adot,MaxA,Xp,Xm,Xf,Xdot,Rp,Rm,Rf,Rdot,Sp,Sm,Sf,Sdot,Alpha4,XX1,YY1,YY2,V,Amplitudek,MaxKinEner,MinKinEner=100.0;
 // Arrays
 double *u0,*u1,*u2,*u3,*p,*f0,*f1,*f2,*f3,*analit,*EnerOfAtoms;
-double PartParam[5000][3],PartParam0[5000][3];
-double KinEner[Nat], PotEner[Nat], TotEner[Nat];
+
 
 double sqr (double x) {return x*x;}
 double cube (double x) {return x*x*x;}
@@ -73,7 +87,6 @@ void ShowEnergy(int, double z[]);
 void Add_HIST_E(double Al, double Ar);
 void Add_HIST_P(double Al, double Ar);
 double MR11(double r);
-void JacobiElliptic (double z, double m);
 
 //---------------------------------------------------------------------------
 __fastcall TForm1::TForm1(TComponent* Owner) : TForm(Owner){
@@ -87,38 +100,61 @@ f2 = new double [Nat*8]; f3 = new double [Nat*8];
 //---------------------------------------------------------------------------
 void __fastcall TForm1::Button1Click(TObject *Sender){
 
-ofstream OFSOee("Energies.txt",ios::out);
-OFSOee.precision(10);
-ofstream OFSOdb("Number_of_DB.txt",ios::out);
-OFSOdb.precision(10);
-ofstream OFSOd("Displ_DB.txt",ios::out);
-OFSOd.precision(10);
-ofstream OFSOes("Exact_Displ_DB.txt",ios::out);
-OFSOes.precision(10);
-
-
-double time=0.0;
-while (time<100.0){
-            double A,AA,P,M,q1,q2,q3,u,a1,a3,a5;
-            A=5.0; AA=A*A;
-            a1=3.0;
-            a3=1.0/6.0;
-            a5=1.0/120.0;
-            q1=a1+a3*AA+a5*AA*AA;
-            q2=6.0*a1+3.0*a3*AA+ 2.0*a5*AA*AA;
-            q3=4.0*a1+3.0*a3*AA+ 2.0*a5*AA*AA;
-            P=sqrt(sqrt(q1*q2/6.0))*time;
-            M=0.5-0.25*q3*sqrt(3.0/(2*q1*q2));
-            JacobiElliptic(P,M);
-            u=(A*cn)/sqrt(cn*cn+sqrt(6.0*q1/q2)*sn*sn*dn*dn);
-
-            OFSOes.width(12); OFSOes << time;       OFSOes << " ";  // 1
-            OFSOes.width(12); OFSOes << u;     OFSOes << "\n";  // 2
-            time += dt;
+// DB parameters from analytics
+ofstream OFSOa("Analit.txt",ios::out);
+OFSOa.precision(10);
+int PLO=1;
+if (PLO==1){
+   /*
+   // soft-type anharm
+   double omega=0.99999;
+   while (omega>0.75){
+      double A,theta,AR,thetaR;
+      A=4.0*atan(sqrt(1.0-omega*omega)/omega);
+      theta=sqrt(1.0-omega*omega);
+      double Omega=1.0-omega;
+      thetaR=sqrt(2.0*Omega);
+      AR=4.0*thetaR;
+      OFSOa.width(12); OFSOa << omega;   OFSOa << " ";// 1
+      OFSOa.width(12); OFSOa << A; OFSOa << " ";      // 2
+      OFSOa.width(12); OFSOa << theta; OFSOa << " ";  // 3
+      OFSOa.width(12); OFSOa << AR; OFSOa << " ";     // 4
+      OFSOa.width(12); OFSOa << thetaR; OFSOa << " "; // 5
+      OFSOa << "\n";
+      omega-=0.002;
+   }
+   */
+   // hard-type anharm
+   double omega=2.2361;
+   while (omega<2.41){
+      double AR,thetaR;
+      double Omega=omega-sqrt(5.0);
+      thetaR=sqrt(2.0*sqrt(5.0)*Omega);
+      AR=4.0*thetaR;
+      OFSOa.width(12); OFSOa << omega;   OFSOa << " ";// 1
+      OFSOa.width(12); OFSOa << AR; OFSOa << " ";     // 4
+      OFSOa.width(12); OFSOa << thetaR; OFSOa << " "; // 5
+      OFSOa << "\n";
+      omega+=0.002;
+   }
 }
 
-double omegaMAX=2.2360679775;
-double omegaMIN=1.0;
+
+ofstream OFSOee("Energies_l.txt",ios::out);
+OFSOee.precision(10);
+ofstream OFSOr("Results_l.txt",ios::out);
+OFSOr.precision(10);
+ofstream OFSOd("Displ_l_5h.txt",ios::out);
+OFSOd.precision(10);
+ofstream OFSOdb("DBparam_l.txt",ios::out);
+OFSOdb.precision(10);
+
+omega=2.24;
+
+while (omega<2.24000001){
+
+Form1->Canvas->TextOut(25,50,"omega   =");
+Form1->Canvas->TextOut(95,50,omega);
 
 // Zero into files
 for(int i = 0; i<Nat; i++){
@@ -130,44 +166,39 @@ for(int i = 0; i<Nat; i++){
 //**********************************************
 //  INITIAL  CONDITIONS
 //**********************************************
-/*
-// Zone boundary mode
-double AmplZBM=1.2;
-for (int i=0; i<Nat; i++){
-   int Rand=random(2000);
-   double R=(Rand-1000)/1000.0;
+double t0=tMIN;
+
+// incert DB in the center of the chain
+for(int i=Nat2-100; i<Nat2+100; i++){
    if (i%2==0){
-      u0[i]=AmplZBM+R*1.0e-14;
-      u1[i]=AmplZBM+R*1.0e-14;
-      u2[i]=AmplZBM+R*1.0e-14;
-      u3[i]=AmplZBM+R*1.0e-14;
+      u0[i]=ADB*cos(-omegaDB*0.0*dt+delta*(i-Nat2))/Ch(teta*(i-Nat2));
+      u1[i]=ADB*cos(-omegaDB*1.0*dt+delta*(i-Nat2))/Ch(teta*(i-Nat2));
+      u2[i]=ADB*cos(-omegaDB*2.0*dt+delta*(i-Nat2))/Ch(teta*(i-Nat2));
+      u3[i]=ADB*cos(-omegaDB*3.0*dt+delta*(i-Nat2))/Ch(teta*(i-Nat2));
    }
-   else{
-      u0[i]=-AmplZBM+R*1.0e-14;
-      u1[i]=-AmplZBM+R*1.0e-14;
-      u2[i]=-AmplZBM+R*1.0e-14;
-      u3[i]=-AmplZBM+R*1.0e-14;
+   else {
+      u0[i]=-ADB*cos(-omegaDB*0.0*dt+delta*(i-Nat2))/Ch(teta*(i-Nat2));
+      u1[i]=-ADB*cos(-omegaDB*1.0*dt+delta*(i-Nat2))/Ch(teta*(i-Nat2));
+      u2[i]=-ADB*cos(-omegaDB*2.0*dt+delta*(i-Nat2))/Ch(teta*(i-Nat2));
+      u3[i]=-ADB*cos(-omegaDB*3.0*dt+delta*(i-Nat2))/Ch(teta*(i-Nat2));
    }
 }
-*/
-// Initiate DB
-double AmplDB=5.8;
-      u0[Nat2]=AmplDB;
-      u1[Nat2]=AmplDB;
-      u2[Nat2]=AmplDB;
-      u3[Nat2]=AmplDB;
+
 
 //**********************************************
 //  MD  CALCULATION
 //**********************************************
 
-double t = 0.0;
+double t = tMIN;
 long nit = 0;
-int RandAv=500;
-double AverKin=0.0;
-int NumAver=0;
-
+tmax=0.0;
+tmaxP=0.0;
+xmax=0.0;
+xmaxP=0.0;
+double averV=0.0;
+int CaverV=0;
 while (t<=tMAX+0.0000001){
+
     //  Stormer procedure
     ForceCulc(u0,f0);
     for(int i=0; i<Nat; i++){
@@ -181,102 +212,126 @@ while (t<=tMAX+0.0000001){
        f3[i] = f2[i]; f2[i] = f1[i]; f1[i] = f0[i];
     }
 
-       u0[Nat2-1]=0.0; u1[Nat2-1]=0.0; u2[Nat2-1]=0.0; u3[Nat2-1]=0.0;
-       u0[Nat2+1]=0.0; u1[Nat2+1]=0.0; u2[Nat2+1]=0.0; u3[Nat2+1]=0.0;
+    // AC driving (displacement)
+//    if (t<50.0)
+//    u0[Nat2]=A*sin(omega*t);
 
-    if (nit%5==0){
-        EnergyOfAtoms(u0,u1,u2,u3);
-        OFSOd.width(12); OFSOd << t;       OFSOd << " ";  // 1
-        OFSOd.width(12); OFSOd << u0[Nat2+0];     OFSOd << " ";  // 2
-        OFSOd.width(12); OFSOd << u0[Nat2+1];     OFSOd << " ";  // 2
-        OFSOd.width(12); OFSOd << u0[Nat2+2];     OFSOd << " ";  // 2
-        OFSOd.width(12); OFSOd << EnerOfAtoms[Nat2+0];     OFSOd << " ";  // 2
-        OFSOd.width(12); OFSOd << EnerOfAtoms[Nat2+1];     OFSOd << " ";  // 2
-        OFSOd.width(12); OFSOd << EnerOfAtoms[Nat2+2];     OFSOd << "\n";  // 2
-    }
     // Show solution
-    if (nit==500){
-        Kin=KinEnergy(u0,u1,u2,u3);
-        Pot=PotEnergy(u0);
-        TotEn = Kin+Pot;
+    if (fmod(nit,5000) == 0){
         EnergyOfAtoms(u0,u1,u2,u3);
         ShowMesh();
         ShowAtoms(clRed,u0);
         ShowEnergy(clBlue,EnerOfAtoms);
-        // Localization parameter
-        double Sum1, Sum2, Localization, MinE, MaxE;
-        Sum1=0.0;
-        Sum2=0.0;
-        Localization=0.0;
-        MinE=100000.0;
-        MaxE=-100000.0;
-        for(int i=0; i<Nat; i++){
-           Sum1=Sum1+sqr(EnerOfAtoms[i]);
-           Sum2=Sum2+EnerOfAtoms[i];
-           if (EnerOfAtoms[i]>MaxE) MaxE=EnerOfAtoms[i];
-           if (EnerOfAtoms[i]<MinE) MinE=EnerOfAtoms[i];
-        }
-        Localization=(Sum1/(1.0*Nat))/(sqr(Sum2)/(1.0*Nat));
-        Form1->Canvas->Brush->Color = clBtnFace;
-        Form1->Canvas->TextOut(25,5,"Kin   =");
-        Form1->Canvas->TextOut(95,5,Kin);
-        Form1->Canvas->TextOut(25,20,"Pot   =");
-        Form1->Canvas->TextOut(95,20,Pot);
-        Form1->Canvas->TextOut(25,35,"TotEn   =");
-        Form1->Canvas->TextOut(95,35,TotEn);
-        Form1->Canvas->TextOut(25,50,"Loc=                                                       ");
-        Form1->Canvas->TextOut(95,50,Localization);
-        Form1->Canvas->TextOut(25,65,"DelE=                                                      ");
-        Form1->Canvas->TextOut(95,65,MaxE-MinE);
-        Form1->Canvas->TextOut(25,80,"t   =");
-        Form1->Canvas->TextOut(95,80,t);
-        // Count DB
-        Kin=KinEnergy(u0,u1,u2,u3);
-        Pot=PotEnergy(u0);
-        TotEn = (Kin+Pot)/(1.0*Nat);
-        EnergyOfAtoms(u0,u1,u2,u3);
-        int DB4=0,DB8=0,DB16=0,DB32=0,DB64=0,DB128=0;
-        for(int i=1; i<Nat-1; i++){
-           if ((EnerOfAtoms[i]>EnerOfAtoms[i-1])&&(EnerOfAtoms[i]>EnerOfAtoms[i+1])){
-              if ((EnerOfAtoms[i]>4.0*TotEn)&&(EnerOfAtoms[i]<8.0*TotEn)) DB4+=1;
-           }
-           if ((EnerOfAtoms[i]>EnerOfAtoms[i-1])&&(EnerOfAtoms[i]>EnerOfAtoms[i+1])){
-              if ((EnerOfAtoms[i]>8.0*TotEn)&&(EnerOfAtoms[i]<16.0*TotEn)) DB8+=1;
-           }
-           if ((EnerOfAtoms[i]>EnerOfAtoms[i-1])&&(EnerOfAtoms[i]>EnerOfAtoms[i+1])){
-              if ((EnerOfAtoms[i]>16.0*TotEn)&&(EnerOfAtoms[i]<32.0*TotEn)) DB16+=1;
-           }
-           if ((EnerOfAtoms[i]>EnerOfAtoms[i-1])&&(EnerOfAtoms[i]>EnerOfAtoms[i+1])){
-              if ((EnerOfAtoms[i]>32.0*TotEn)&&(EnerOfAtoms[i]<64.0*TotEn)) DB32+=1;
-           }
-           if ((EnerOfAtoms[i]>EnerOfAtoms[i-1])&&(EnerOfAtoms[i]>EnerOfAtoms[i+1])){
-              if ((EnerOfAtoms[i]>64.0*TotEn)&&(EnerOfAtoms[i]<128.0*TotEn)) DB32+=1;
-           }
-           if ((EnerOfAtoms[i]>EnerOfAtoms[i-1])&&(EnerOfAtoms[i]>EnerOfAtoms[i+1])){
-              if (EnerOfAtoms[i]>128.0*TotEn) DB64+=1;
-           }
-        }// for(int i=1; i<Nat-1; i++)
-        OFSOdb.width(12); OFSOdb << t;              OFSOdb << " ";  // 1
-        OFSOdb.width(12); OFSOdb << DB4/(1.0*Nat);  OFSOdb << " ";  // 2
-        OFSOdb.width(12); OFSOdb << DB8/(1.0*Nat);  OFSOdb << " ";  // 3
-        OFSOdb.width(12); OFSOdb << DB16/(1.0*Nat); OFSOdb << " ";  // 4
-        OFSOdb.width(12); OFSOdb << DB32/(1.0*Nat); OFSOdb << " ";  // 5
-        OFSOdb.width(12); OFSOdb << DB64/(1.0*Nat); OFSOdb << " ";  // 6
-        OFSOdb.width(12); OFSOdb << DB128/(1.0*Nat); OFSOdb << "\n";// 7
     }// show solution
 
-    // Average KinEn
-    if (fmod(nit,500+RandAv) == 0){
+    // Save displ
+//    if (fmod(nit,2) == 0){
+//        OFSOd.width(12); OFSOd << t;   OFSOd << " ";        // 1
+//        OFSOd.width(12); OFSOd << u0[Nat2+0]; OFSOd << " "; // 2
+//        OFSOd.width(12); OFSOd << u0[Nat2+1]; OFSOd << " "; // 3
+//        OFSOd.width(12); OFSOd << u0[Nat2+2]; OFSOd << " "; // 4
+//        OFSOd << "\n";
+//    }
+//    if ( nit == 6*572-11){
+//    if ( nit == 1538-100){
+//        for(int i=Nat2-20; i<Nat2+20; i++){
+//           OFSOd.width(12); OFSOd << i;   OFSOd << " ";        // 1
+//           OFSOd.width(12); OFSOd << u0[i]; OFSOd << " "; // 2
+//           OFSOd << "\n";
+//        }
+//    }
+
+    // Find DB parameters
+    if (nit%20000==0){
+       EnergyOfAtoms(u0,u1,u2,u3);
+       for(int i=1; i<Nat-2; i++){
+          if ((EnerOfAtoms[i]>EnerOfAtoms[i-1])&&(EnerOfAtoms[i]>EnerOfAtoms[i+1])&&(EnerOfAtoms[i]>0.15)){
+              double ul,um,ur,a,b,c,xx,VDB;
+              ul=EnerOfAtoms[i-1];
+              um=EnerOfAtoms[i];
+              ur=EnerOfAtoms[i+1];
+              a=um;
+              b=(ur-ul)/(2.0);
+              c=(ur-2.0*um+ul)/(2.0);
+              xx=-b/(2.0*c);
+              xmax=i-b/(2.0*c);
+              VDB=(xmax-xmaxP)/(20000.0*dt);
+              xmaxP=xmax;
+              if (nit>2000){
+                  OFSOdb.width(12); OFSOdb << t;   OFSOdb << " "; // 1
+                  OFSOdb.width(12); OFSOdb << VDB; OFSOdb << " "; // 2
+                  OFSOdb.width(12); OFSOdb << ADB; OFSOdb << " "; // 3
+                  OFSOdb << "\n";
+                  if (VDB>0.005){
+                     averV+=VDB;
+                     CaverV+=1;
+                  }
+              }
+          }
+       }
+    }
+
+    // Screen view
+    if (fmod(nit,10) == 0){
         Kin=KinEnergy(u0,u1,u2,u3);
-        AverKin=AverKin+Kin;
-        NumAver=NumAver+1;
-        RandAv=random(1000);
+        Pot=PotEnergy(u0);
+        TotEn = Kin+Pot;
+        double uMAX=-1000.0;
+        int iMAX=0;
+        for(int i=0; i<Nat; i++){
+           if (u0[i]>uMAX){
+              uMAX=u0[i];
+              iMAX=i;
+           }
+        }
+        Form1->Canvas->Brush->Color = clBtnFace;
+        Form1->Canvas->TextOut(25,65,"Kin   =");
+        Form1->Canvas->TextOut(95,65,Kin);
+        Form1->Canvas->TextOut(25,80,"Pot   =");
+        Form1->Canvas->TextOut(95,80,Pot);
+        Form1->Canvas->TextOut(25,95,"TotEn   =");
+        Form1->Canvas->TextOut(95,95,TotEn);
+        Form1->Canvas->TextOut(25,140,"t  =                        ");
+        Form1->Canvas->TextOut(95,140,t);
+        OFSOee.width(12); OFSOee << t;     OFSOee << " ";  // 1
+        OFSOee.width(12); OFSOee << Pot;   OFSOee << " ";  // 2
+        OFSOee.width(12); OFSOee << Kin;   OFSOee << " ";  // 3
+        OFSOee.width(12); OFSOee << TotEn; OFSOee << " ";  // 4
+        OFSOee.width(12); OFSOee << uMAX; OFSOee << " ";  // 5
+        OFSOee.width(12); OFSOee << iMAX; OFSOee << " ";  // 6
+        OFSOee << "\n";
     }// for Screen view
-                         
+
     t += dt;
     nit +=1;
 
 }//while (t<=tMAX+0.0000001)
+
+// Calculate energy
+Kin=KinEnergy(u0,u1,u2,u3);
+Pot=PotEnergy(u0);
+TotEn = Kin+Pot;
+
+        for(int i=Nat2-20; i<Nat2+40; i++){
+           OFSOd.width(12); OFSOd << i;   OFSOd << " ";        // 1
+           OFSOd.width(12); OFSOd << u0[i]; OFSOd << " "; // 2
+           OFSOd << "\n";
+        }
+
+// Save energy and power
+OFSOr.width(12); OFSOr << ADB;     OFSOr << " ";   // 1
+OFSOr.width(12); OFSOr << fabs(delta);   OFSOr << " "; // 3
+OFSOr.width(12); OFSOr << averV/(1.0*CaverV);   OFSOr << " ";    // 2
+OFSOr.width(12); OFSOr << teta; OFSOr << " ";    // 5
+OFSOr.width(12); OFSOr << DBomega;   OFSOr << " "; // 3
+OFSOr << "\n";
+
+
+
+
+omega+=0.01;
+
+}//while (omega<3.0)
 
 //Cloze the file
 OFSOee.close();
@@ -327,15 +382,12 @@ return Kin;}
 void EnergyOfAtoms (double x0[],double x1[],double x2[],double x3[]){
   double Kin = 0.0;
   double Pot = 0.0;
-  for(int i=1; i<Nat-1; i++){
+  for(int i=0; i<Nat-1; i++){
     Kin = 0.5*sqr((11.0*x0[i]-18.0*x1[i]+9.0*x2[i]-2.0*x3[i])/(6.0*dt));
-    Pot = 0.25*sqr(x0[i]-x0[i-1])+0.25*sqr(x0[i+1]-x0[i])+0.5*sqr(x0[i])+0.25*alpha*sqr(x0[i]*x0[i])+(1.0/6.0)*beta*sqr(x0[i]*x0[i]*x0[i]);
+    Pot = 0.5*sqr(x0[i+1]-x0[i])+0.5*sqr(x0[i])+0.25*alpha*sqr(x0[i]*x0[i])+(1.0/6.0)*beta*sqr(x0[i]*x0[i]*x0[i]);
     EnerOfAtoms[i]=Kin+Pot;
   }
-  EnerOfAtoms[0]=0.5*sqr((11.0*x0[0]-18.0*x1[0]+9.0*x2[0]-2.0*x3[0])/(6.0*dt))
-  +0.25*sqr(x0[0]-x0[Nat-1])+0.25*sqr(x0[1]-x0[0])+0.5*sqr(x0[0])+0.25*alpha*sqr(x0[0]*x0[0])+(1.0/6.0)*beta*sqr(x0[0]*x0[0]*x0[0]);
-  EnerOfAtoms[Nat-1]=0.5*sqr((11.0*x0[Nat-1]-18.0*x1[Nat-1]+9.0*x2[Nat-1]-2.0*x3[Nat-1])/(6.0*dt))
-  +0.25*sqr(x0[Nat-1]-x0[Nat-2])+0.25*sqr(x0[0]-x0[Nat-1])+0.5*sqr(x0[Nat-1])+0.25*alpha*sqr(x0[Nat-1]*x0[Nat-1])+(1.0/6.0)*beta*sqr(x0[Nat-1]*x0[Nat-1]*x0[Nat-1]);
+  EnerOfAtoms[Nat-1]=0.0;
 }
 
 
@@ -407,7 +459,7 @@ void ShowAtoms(int Col, double x0[]){
   int x,y;
   for (int i=0; i<Nat; i++){
       x = 40 + floor(i*600.0/Nat);
-      y = 450 - floor(50.0*pi*x0[i]*1.0/(4.0*pi));
+      y = 450 - floor(1.0*pi*x0[i]*150.0/(4.0*pi));
       Form1->Canvas->Pixels[x][y] = Col;
       Form1->Canvas->Pixels[x+1][y] = Col;
       Form1->Canvas->Pixels[x][y+1] = Col;
@@ -420,7 +472,7 @@ void ShowEnergy(int Col, double x0[]){
   int x,y;
   for (int i=0; i<Nat; i++){
       x = 40 + floor(i*600.0/Nat);
-      y = 450 - floor(1.5*pi*x0[i]*15.0/(4.0*pi));
+      y = 450 - floor(1.0*pi*x0[i]*150.0/(4.0*pi));
       Form1->Canvas->Pixels[x][y] = Col;
       Form1->Canvas->Pixels[x+1][y] = Col;
       Form1->Canvas->Pixels[x][y+1] = Col;
@@ -428,33 +480,7 @@ void ShowEnergy(int Col, double x0[]){
   }
 }
 
-void JacobiElliptic (double z, double m){
-     double a[1000], b[1000], c[1000], fi[1000];
-     double eps=2.0e-14;
-     a[0]=1.0, b[0]=sqrt(1.0-m), c[0]=sqrt(abs(m));
-     int N=0;
-     while (sqrt(sqr(c[N]))>eps){
-        double a1,b1,c1;
-        a1=0.5*(a[N]+b[N]);
-        b1=sqrt(a[N]*b[N]);
-        c1=0.5*(a[N]-b[N]);
-        N+=1;
-        a[N]=a1;
-        b[N]=b1;
-        c[N]=c1;
-     }// while (sqrt(sqr(c))>eps)
-     int N2=1;
-     for (int i=0; i<N; i++) N2=N2*2;
-     fi[N]=N2*a[N]*z;
-     for (int i=0; i<N; i++){
-         double arg=(c[N-i]/a[N-i])*sin(fi[N-i]);
-         fi[N-i-1]=0.5*(fi[N-i]+atan(arg/sqrt(1.0-arg*arg)));
-     }
-     sn=sin(fi[0]);
-     cn=cos(fi[0]);
-     dn=cos(fi[0])/cos(fi[1]-fi[0]);
-     JacobiPeriod=2.0*pi/a[N];
-}// For void JacobiElliptic (double z, double m)
+
 
 
 
